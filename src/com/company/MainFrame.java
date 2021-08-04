@@ -17,7 +17,7 @@ public class MainFrame {
     boolean decimalFlag = false;  // for adding decimal digits
     boolean operation = false; // flag for first +-*/ action
     boolean valueTypedFlag = false; // flag for every value = true except firstValue
-    boolean nextValueTypeFlag = false; // flag for knowing when to start typing second value
+    boolean nextValueCanBeTypedFlag = false; // flag for knowing when to start typing second value
     boolean calculateFlag = false; // flag for "=" key
     boolean unaryOperationFlag = false;
     boolean resetFlag = false;
@@ -35,11 +35,30 @@ public class MainFrame {
     DecimalFormat decimalFormat = new DecimalFormat(pattern);
 
     // helper methods
+    private void negate() {
+        if (!displayValueString.equals("0")) {
+            if (displayValueString.startsWith("-")){
+                displayValueString = displayValueString.replace("-", "");
+            }
+            else {
+                displayValueString = "-" + displayValueString;
+            }
+
+            numKeyPressedDisplay();
+        }
+    }
+
     private void ceKeyPressed() {
+        // clears completely if used exactly after "="
+        if(calculateFlag){
+            completeReset();
+            return;
+        }
+
         // clears current typed valued
-        displayValueString = "";
+        displayValueString = "0";
         decimalFlag = false;
-        screenPane.setText("0");
+        screenPane.setText(displayValueString);
     }
 
     private void completeReset() {
@@ -47,19 +66,29 @@ public class MainFrame {
         decimalFlag = false;
         operation = false;
         valueTypedFlag = false;
-        nextValueTypeFlag = false;
+        nextValueCanBeTypedFlag = false;
         unaryOperationFlag = false;
         calculateFlag = false;
+        resetFlag = false;
+
         operator = 0;
         unaryOperator = 0;
         displayValueString = "0";
         leftHandValueString = "";
+        rightHandValueString = "";
         screenPane.setText(displayValueString);
     }
 
     private void resultValueScreenDisplay() {
-        nextValueTypeFlag = true;
+        // after "=" this flag makes it possible to type a new value
+        nextValueCanBeTypedFlag = true;
+
+        // strip Trailing Zeros for proper display purposes
         bigDec = bigDec.stripTrailingZeros();
+
+        // keep current display value as right hand value in case of multiple "="
+        // example 5 + 3 = 8 press("=") => = 11 press("=") => 14
+        // the 3 is stored for that purpose
         rightHandValueString = displayValueString;
 
         if (bigDec.toString().replace(".","").length() > 16){
@@ -92,8 +121,8 @@ public class MainFrame {
 
     private void numberKeyPressed(MouseEvent mouseEvent) {
         // use as naming suggests
-        if (nextValueTypeFlag){
-            nextValueTypeFlag = false;
+        if (nextValueCanBeTypedFlag){
+            nextValueCanBeTypedFlag = false;
             displayValueString = "0";
         }
 
@@ -128,12 +157,19 @@ public class MainFrame {
             // store display value for leftHandValueString of operation
             leftHandValueString = displayValueString;
 
-            //
-            nextValueTypeFlag = true;
-
             // reset decimal flag
             decimalFlag = false;
         }
+        else if (calculateFlag){
+            // started new calculation using display value as left hand
+            calculateFlag = false;
+            // store display value for leftHandValueString of operation
+            leftHandValueString = displayValueString;
+            // CE specific flag for case A + B = X + CE = X + 0 = X
+        }
+
+        //
+        nextValueCanBeTypedFlag = true;
     }
 
     private void calculateResult() throws InterruptedException {
@@ -146,9 +182,7 @@ public class MainFrame {
             // correct string format to use constructor of BigDecimal
             displayValueString = displayValueString.replace(".","").replace(",", ".");
             leftHandValueString = leftHandValueString.replace(".","").replace(",", ".");
-
-            System.out.println(displayValueString);
-            System.out.println(leftHandValueString);
+            rightHandValueString = displayValueString;
 
             switch (operator) {
 
@@ -164,13 +198,13 @@ public class MainFrame {
                 case 4: // div
                     if (displayValueString.equals("0")) {
                         if (unaryOperator == 7) {
-                            screenPane.setText("Result undefined!");
+                            screenPane.setText("Result \nundefined!");
                         }
                         else {
-                            screenPane.setText("Cannot divide by zero!");
+                            screenPane.setText("Cannot divide \nby zero!");
                         }
-                        // reset #here
                         resetFlag = true;
+                        return;
                     }
                     else {
                         bigDec = new BigDecimal(leftHandValueString).divide(new BigDecimal(displayValueString), 16, BigDecimal.ROUND_CEILING);
@@ -187,8 +221,11 @@ public class MainFrame {
             // uses previous result + latest right hand value for operation
             calculateFlag = true;
 
+            // reset unaryOperator int needed for percentage "Result undefined!" message
+            // a / 0 % = "Result undefined!" compared to a / 0 = cannot divide by zero
+            unaryOperator = 0;
+
             resultValueScreenDisplay();
-            // #here and reset proper flags
         }
     }
 
@@ -209,14 +246,13 @@ public class MainFrame {
         if (operator == 3 || operator == 4) {
             // mult/div
             bigDec = new BigDecimal(displayValueString).multiply(new BigDecimal("0.01"));
-            displayValueString = bigDec.toString();
+//            displayValueString = bigDec.toString();
         } else {
             // add/sub
-            bigDec = new BigDecimal(displayValueString).multiply(new BigDecimal(displayValueString)).multiply(new BigDecimal("0.01"));
-            displayValueString = bigDec.toString();
+            bigDec = new BigDecimal(leftHandValueString).multiply(new BigDecimal(displayValueString)).multiply(new BigDecimal("0.01"));
+//            displayValueString = bigDec.toString();
         }
 
-        // #here needs to calculate or print result?
         resultValueScreenDisplay();
     }
 
@@ -233,7 +269,7 @@ public class MainFrame {
             case 4:
                 if (displayValueString.equals("0") || leftHandValueString.equals("0")) {
                     screenPane.setText("Cannot divide by zero");
-                    // reset #here
+                    resetFlag = true;
                     return;
                 } else {
                     bigDec = new BigDecimal("1").divide(new BigDecimal(displayValueString), 16, BigDecimal.ROUND_CEILING);
@@ -243,7 +279,15 @@ public class MainFrame {
                 bigDec = new BigDecimal(displayValueString).pow(2);
                 break;
             case 6:
-                bigDec = Controller.bigDecimalSQRT(new BigDecimal(displayValueString), 16);
+                if (displayValueString.startsWith("-")){
+                    screenPane.setText("Invalid input");
+                    resetFlag = true;
+                    return;
+                }else {
+                    bigDec = Controller.bigDecimalSQRT(new BigDecimal(displayValueString), 16);
+
+                }
+                break;
         }
 
         // output result
@@ -373,7 +417,28 @@ public class MainFrame {
 
             }
         });
+        nullButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent mouseEvent) {
+                super.mousePressed(mouseEvent);
+
+                negate();
+
+            }
+        });
+
+        MouseAdapter listener4 = new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent mouseEvent) {
+                super.mousePressed(mouseEvent);
+                completeReset();
+            }
+        };
+
+
+
     }
+
 
     public static void main(String[] args) {
         JFrame frame = new JFrame("Calculator");

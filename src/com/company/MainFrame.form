@@ -266,7 +266,7 @@
             </constraints>
             <properties>
               <font size="20" style="1"/>
-              <text value="null"/>
+              <text value="+/-"/>
             </properties>
           </component>
           <component id="7c5f" class="javax.swing.JButton" binding="a0Button" default-binding="true">
