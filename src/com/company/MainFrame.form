@@ -49,6 +49,7 @@
             </constraints>
             <properties>
               <font size="20" style="1"/>
+              <name value="7"/>
               <text value="%"/>
             </properties>
           </component>
@@ -286,6 +287,7 @@
             </constraints>
             <properties>
               <font size="20" style="1"/>
+              <name value="comma"/>
               <text value=","/>
             </properties>
           </component>

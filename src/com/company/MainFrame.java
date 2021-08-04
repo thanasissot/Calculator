@@ -3,6 +3,7 @@ package com.company;
 import javax.swing.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.math.BigDecimal;
 import java.text.DecimalFormat;
 
 public class MainFrame {
@@ -16,16 +17,16 @@ public class MainFrame {
     boolean decimalFlag = false;  // for adding decimal digits
     boolean operation = false; // flag for first +-*/ action
     boolean valueTypedFlag = false; // flag for every value = true except firstValue
-    boolean secondValueStartTyping = false; // flag for knowing when to start typing second value
+    boolean nextValueTypeFlag = false; // flag for knowing when to start typing second value
     boolean calculateFlag = false; // flag for "=" key
     boolean unaryOperationFlag = false;
     boolean resetFlag = false;
 
     // some more variables
-    String tempString = "0";
-    double tempValue = 0;
-    double firstValue = 0;
-    double secondValue = 0;
+    String displayValueString = "0";
+    String leftHandValueString = "";
+    String rightHandValueString = "";
+    BigDecimal bigDec;
     int operator = 0;
     int unaryOperator = 0;
 
@@ -34,36 +35,9 @@ public class MainFrame {
     DecimalFormat decimalFormat = new DecimalFormat(pattern);
 
     // helper methods
-    private double getDoubleFromString(String string) {
-        double result = 0;
-        int exponent = 0;
-        int counter = 0;
-
-        String[] array = string.split(",");
-        String[] integers = array[0].split("");
-
-        exponent = array[0].length() - 1;
-        counter = exponent;
-        for (int i = exponent; i >= 0; i--){
-            result += Double.parseDouble(integers[counter - i]) * Math.pow(10, exponent--);
-        }
-
-        if (array.length > 1){
-            String[] decimals = array[1].split("");
-            exponent = -1;
-            for (int i = 0; i <= decimals.length; i++){
-                result += Double.parseDouble(integers[i]) * Math.pow(10, exponent--);
-            }
-
-            return (double)Math.round(result * Math.pow(10, decimals.length)) / Math.pow(10, decimals.length);
-        }
-
-        return result;
-    }
-
     private void ceKeyPressed() {
         // clears current typed valued
-        tempString = "";
+        displayValueString = "";
         decimalFlag = false;
         screenPane.setText("0");
     }
@@ -73,128 +47,134 @@ public class MainFrame {
         decimalFlag = false;
         operation = false;
         valueTypedFlag = false;
-        secondValueStartTyping = false;
+        nextValueTypeFlag = false;
         unaryOperationFlag = false;
         calculateFlag = false;
-        tempValue = 0;
-        firstValue = 0;
-        secondValue = 0;
         operator = 0;
         unaryOperator = 0;
-        tempString = "0";
-        screenPane.setText(tempString);
+        displayValueString = "0";
+        leftHandValueString = "";
+        screenPane.setText(displayValueString);
     }
 
     private void resultValueScreenDisplay() {
-        String output = decimalFormat.format(tempValue);
+        nextValueTypeFlag = true;
+        bigDec = bigDec.stripTrailingZeros();
+        rightHandValueString = displayValueString;
 
-        if (output.replace(".", "").replace(",","").length() > 16){
-            screenPane.setText(String.valueOf(tempValue));
-        } else {
-            screenPane.setText(output);
+        if (bigDec.toString().replace(".","").length() > 16){
+            displayValueString = Controller.formatBigNumber(bigDec, 16);
+            screenPane.setText(displayValueString);
+        }
+
+        else {
+            displayValueString = Controller.formatInRangeNumber(bigDec);
+            screenPane.setText(displayValueString);
         }
     }
 
-    private void numericalTypedValueScreenDisplay() {
+    private void numKeyPressedDisplay() {
         // used whenever numerical or "," key used
-        if (tempString.contains(",")){
-            String[] str = tempString.split(",");
+        if (displayValueString.contains(",")){
+            String[] str = displayValueString.split(",");
 
             if (str.length == 1){
-                screenPane.setText(decimalFormat.format(Double.parseDouble(str[0])) + ",");
+                screenPane.setText(Controller.formatInRangeNumber(new BigDecimal(str[0])) + ",");
             }
             else {
-                screenPane.setText(decimalFormat.format(Double.parseDouble(str[0])) + "," + str[1]);
+                screenPane.setText(Controller.formatInRangeNumber(new BigDecimal(str[0])) + "," + str[1]);
             }
         }
         else {
-            if (tempString.equals("9999999999999999")){
-                screenPane.setText("9.999.999.999.999.999");
-            }
-            else {
-                screenPane.setText(decimalFormat.format(Double.parseDouble(tempString)));
-            }
+            screenPane.setText(Controller.formatInRangeNumber(new BigDecimal(displayValueString)));
         }
     }
 
     private void numberKeyPressed(MouseEvent mouseEvent) {
         // use as naming suggests
-        if (tempString.replace(",", "").length() >= 16){
+        if (nextValueTypeFlag){
+            nextValueTypeFlag = false;
+            displayValueString = "0";
+        }
+
+        if (displayValueString.replace(",", "").length() >= 16){
             // maximum length of digits reached => do nothing
             return;
         }
+
+        if (!decimalFlag && mouseEvent.getComponent().getName().equals("comma")){
+            decimalFlag = true;
+            displayValueString += ",";
+        }
         // base case, every key added to the back of the string which is the number displayed
-        if (tempString.equals("0")) {
-            tempString = mouseEvent.getComponent().getName();
+        else if (displayValueString.equals("0")) {
+            displayValueString = mouseEvent.getComponent().getName();
         }
         else {
-            tempString += mouseEvent.getComponent().getName();
+            displayValueString += mouseEvent.getComponent().getName();
         }
-
-        valueTypedFlag = true;
 
         // show output
-        this.numericalTypedValueScreenDisplay();
-    }
-
-    private void commaKeyPressed(){
-        if (!decimalFlag && tempString.length() <= 15){
-            // if decimal already typed do nothing
-            tempString += ",";
-            decimalFlag = true;
-            this.numericalTypedValueScreenDisplay();
-        }
+        this.numKeyPressedDisplay();
     }
 
     // operator int coded as below
     // add = 0, sub = 1, mult = 2, div = 3
-    private void addSubMultDivOperation() {
-        if (!operation) {   // pressing +-/* first time
-            if(!unaryOperationFlag) {
-                firstValue = getDoubleFromString(tempString);
-                // value typed flag reset
-                valueTypedFlag = false;
-            }
-            else {
-                firstValue = tempValue;
-//                valueTypedFlag = true;
-                unaryOperationFlag = false;
-            }
-
+    private void operator() {
+        if (!operation) {
+            // pressing +-/* first time
             operation = true;
+
+            // store display value for leftHandValueString of operation
+            leftHandValueString = displayValueString;
+
+            //
+            nextValueTypeFlag = true;
+
             // reset decimal flag
             decimalFlag = false;
-            tempString = "0";
         }
     }
 
     private void calculateResult() throws InterruptedException {
+        if (calculateFlag){
+            leftHandValueString = displayValueString;
+            displayValueString = rightHandValueString;
+        }
+
         if (operation) {
-            if (valueTypedFlag && !unaryOperationFlag){
-                tempValue = getDoubleFromString(tempString);
-            }
-            else if (!unaryOperationFlag){
-                return;
-            }
+            // correct string format to use constructor of BigDecimal
+            displayValueString = displayValueString.replace(".","").replace(",", ".");
+            leftHandValueString = leftHandValueString.replace(".","").replace(",", ".");
+
+            System.out.println(displayValueString);
+            System.out.println(leftHandValueString);
 
             switch (operator) {
+
                 case 1: // add
-                    tempValue += firstValue;
+                    bigDec = new BigDecimal(leftHandValueString).add(new BigDecimal(displayValueString));
                     break;
                 case 2: // sub
-                    tempValue = (firstValue - tempValue);
+                    bigDec = new BigDecimal(leftHandValueString).subtract(new BigDecimal(displayValueString));
                     break;
                 case 3: // mult
-                    tempValue *= firstValue;
+                    bigDec = new BigDecimal(leftHandValueString).multiply(new BigDecimal(displayValueString));
                     break;
                 case 4: // div
-                    if (tempValue == 0) {
-                        screenPane.setText("Cannot divide by zero");
-                        // reset
+                    if (displayValueString.equals("0")) {
+                        if (unaryOperator == 7) {
+                            screenPane.setText("Result undefined!");
+                        }
+                        else {
+                            screenPane.setText("Cannot divide by zero!");
+                        }
+                        // reset #here
                         resetFlag = true;
-                        return;
                     }
-                    tempValue = (firstValue / tempValue);
+                    else {
+                        bigDec = new BigDecimal(leftHandValueString).divide(new BigDecimal(displayValueString), 16, BigDecimal.ROUND_CEILING);
+                    }
                     break;
                 default:
                     screenPane.setText("No operaton value.\nSomething went really wrong");
@@ -202,9 +182,12 @@ public class MainFrame {
                     System.exit(-1);
                     break;
             }
-            // show result output with proper format
-            resultValueScreenDisplay();
 
+            // used for multiple "="
+            // uses previous result + latest right hand value for operation
+            calculateFlag = true;
+
+            resultValueScreenDisplay();
             // #here and reset proper flags
         }
     }
@@ -216,39 +199,23 @@ public class MainFrame {
             completeReset();
             return;
         }
-        else if (!valueTypedFlag) {
-            // when one value is typed and an operation, and uses the same value to calculate the %
-            // for add and sub this is x*(x*0.01) e.g. 200 + % = 200 + 400, cause 200*200*0.01 = 400
-            // for mult and div is x*0.01, e.g. 50 * % = 50 * 0.5, cause 50 * 0.01 = 0.5
-            // here operation is true so firstValue = tempValue, and tempValue = 0
-            if (operator == 3 || operator == 4) {
-                // mult/div
-                tempValue = firstValue * 0.01;
-            } else {
-                // add/sub
-                tempValue = firstValue * firstValue * 0.01;
-            }
-        }
-        else {
-            // second number has been typed, so its used to calculate the percentage
-            // although the formula is the same the variables slightly differ
-            // #here can be implemented better to get less code
-            tempValue = getDoubleFromString(tempString);
-            switch (operator) {
-                case 1:
-                case 2:
-                    // add/sub
-                    tempValue = firstValue * (tempValue * 0.01);
-                    break;
-                case 3:
-                case 4:
-                    // mult/div
-                    tempValue = tempValue * 0.01;
-                    break;
-            }
+
+        // correct string format to use constructor of BigDecimal
+        displayValueString = displayValueString.replace(",", ".");
+        leftHandValueString = leftHandValueString.replace(",", ".");
+
+        // for add and sub this is x*(x*0.01) e.g. 200 + % = 200 + 400, cause 200*200*0.01 = 400
+        // for mult and div is x*0.01, e.g. 50 * % = 50 * 0.5, cause 50 * 0.01 = 0.5
+        if (operator == 3 || operator == 4) {
+            // mult/div
+            bigDec = new BigDecimal(displayValueString).multiply(new BigDecimal("0.01"));
+            displayValueString = bigDec.toString();
+        } else {
+            // add/sub
+            bigDec = new BigDecimal(displayValueString).multiply(new BigDecimal(displayValueString)).multiply(new BigDecimal("0.01"));
+            displayValueString = bigDec.toString();
         }
 
-        unaryOperationFlag = true;
         // #here needs to calculate or print result?
         resultValueScreenDisplay();
     }
@@ -257,32 +224,28 @@ public class MainFrame {
     private void unaryOperatorPressed() throws InterruptedException {
         // operation was pressed after typing a number and not a second value given
         // the operant uses as value the first typed value
-        if (!operation || valueTypedFlag){
-            tempValue = getDoubleFromString(tempString);
-        }
-        else {
-            tempValue = firstValue;
-        }
+
+        // correct string format to use constructor of BigDecimal
+        displayValueString = displayValueString.replace(",", ".");
+        leftHandValueString = leftHandValueString.replace(",", ".");
 
         switch (unaryOperator) {
             case 4:
-                if (tempValue == 0) {
+                if (displayValueString.equals("0") || leftHandValueString.equals("0")) {
                     screenPane.setText("Cannot divide by zero");
-                    // reset
-                    resetFlag = true;
+                    // reset #here
                     return;
                 } else {
-                    tempValue = 1 / tempValue;
+                    bigDec = new BigDecimal("1").divide(new BigDecimal(displayValueString), 16, BigDecimal.ROUND_CEILING);
                 }
                 break;
             case 5:
-                tempValue = Math.pow(tempValue, 2);
+                bigDec = new BigDecimal(displayValueString).pow(2);
                 break;
             case 6:
-                tempValue = Math.sqrt(tempValue);
+                bigDec = Controller.bigDecimalSQRT(new BigDecimal(displayValueString), 16);
         }
 
-        unaryOperationFlag = true;
         // output result
         resultValueScreenDisplay();
     }
@@ -290,7 +253,8 @@ public class MainFrame {
     public MainFrame() {
         // setting format for appropriate firstValue print to screen
         // simple print the double firstValue gives a scientific notation in a too small number
-        decimalFormat.setMaximumFractionDigits(360);
+        decimalFormat.setMaximumFractionDigits(20);
+
 
         // numerical key listener
         MouseAdapter listener = new MouseAdapter() {
@@ -312,6 +276,7 @@ public class MainFrame {
         a2Button.addMouseListener(listener);
         a3Button.addMouseListener(listener);
         a0Button.addMouseListener(listener);
+        commaButton.addMouseListener(listener);
 
         // operation +,-,*,/ key listener
         MouseAdapter listener1 = new MouseAdapter() {
@@ -321,7 +286,7 @@ public class MainFrame {
 
                 // assing +-*/ operator value
                 operator = Integer.parseInt(mouseEvent.getComponent().getName());
-                addSubMultDivOperation();
+                operator();
 
             }
         };
@@ -356,6 +321,8 @@ public class MainFrame {
             @Override
             public void mousePressed(MouseEvent mouseEvent) {
                 super.mousePressed(mouseEvent);
+
+                unaryOperator = Integer.parseInt(mouseEvent.getComponent().getName());
 
                 try {
                     percentage();
@@ -406,18 +373,6 @@ public class MainFrame {
 
             }
         });
-
-        // comma key listener, for inputing decimal values
-        MouseAdapter listener4 = new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent mouseEvent) {
-                super.mousePressed(mouseEvent);
-
-                commaKeyPressed();
-
-            }
-        };
-        commaButton.addMouseListener(listener4);
     }
 
     public static void main(String[] args) {
