@@ -3,12 +3,12 @@
   <grid id="27dc6" binding="mainPanel" layout-manager="GridLayoutManager" row-count="2" column-count="1" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
     <margin top="5" left="5" bottom="5" right="5"/>
     <constraints>
-      <xy x="20" y="16" width="399" height="627"/>
+      <xy x="20" y="16" width="550" height="750"/>
     </constraints>
     <properties>
-      <maximumSize width="399" height="550"/>
-      <minimumSize width="399" height="550"/>
-      <preferredSize width="399" height="550"/>
+      <maximumSize width="500" height="550"/>
+      <minimumSize width="500" height="550"/>
+      <preferredSize width="500" height="550"/>
     </properties>
     <border type="none"/>
     <children>
@@ -22,14 +22,18 @@
         <children>
           <component id="f3efa" class="javax.swing.JEditorPane" binding="screenPane">
             <constraints>
-              <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="2" anchor="0" fill="3" indent="0" use-parent-layout="false">
-                <preferred-size width="150" height="50"/>
+              <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="0" fill="3" indent="0" use-parent-layout="false">
+                <minimum-size width="490" height="184"/>
+                <preferred-size width="490" height="184"/>
+                <maximum-size width="490" height="184"/>
               </grid>
             </constraints>
             <properties>
+              <alignmentX value="0.5"/>
+              <alignmentY value="0.5"/>
               <editable value="false"/>
               <focusable value="true"/>
-              <font size="48" style="1"/>
+              <font size="40" style="1"/>
               <text value="0"/>
             </properties>
           </component>
@@ -37,7 +41,11 @@
       </grid>
       <grid id="eefd0" binding="buttonsPanel" layout-manager="GridBagLayout">
         <constraints>
-          <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+          <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="0" fill="3" indent="0" use-parent-layout="false">
+            <minimum-size width="490" height="351"/>
+            <preferred-size width="490" height="351"/>
+            <maximum-size width="490" height="351"/>
+          </grid>
         </constraints>
         <properties/>
         <border type="none"/>
@@ -80,7 +88,7 @@
             </constraints>
             <properties>
               <font size="20" style="1"/>
-              <text value="Del"/>
+              <text value="←"/>
             </properties>
           </component>
           <component id="3b060" class="javax.swing.JButton" binding="oneDivXButton">

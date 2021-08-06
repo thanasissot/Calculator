@@ -1,10 +1,12 @@
 package com.company;
 
 import javax.swing.*;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
 
 public class MainFrame {
     private JPanel screenPanel;
@@ -16,11 +18,9 @@ public class MainFrame {
     // flags
     boolean decimalFlag = false;  // for adding decimal digits
     boolean operation = false; // flag for first +-*/ action
-    boolean valueTypedFlag = false; // flag for every value = true except firstValue
     boolean nextValueCanBeTypedFlag = false; // flag for knowing when to start typing second value
     boolean calculateFlag = false; // flag for "=" key
-    boolean unaryOperationFlag = false;
-    boolean resetFlag = false;
+    boolean deleteFlag = false;
 
     // some more variables
     String displayValueString = "0";
@@ -29,10 +29,6 @@ public class MainFrame {
     BigDecimal bigDec;
     int operator = 0;
     int unaryOperator = 0;
-
-    // used for formatting text output
-    String pattern = "###,###.###";
-    DecimalFormat decimalFormat = new DecimalFormat(pattern);
 
     // helper methods
     private void negate() {
@@ -65,11 +61,9 @@ public class MainFrame {
         // restores all variables and flags to start up default values
         decimalFlag = false;
         operation = false;
-        valueTypedFlag = false;
         nextValueCanBeTypedFlag = false;
-        unaryOperationFlag = false;
         calculateFlag = false;
-        resetFlag = false;
+        deleteFlag = false;
 
         operator = 0;
         unaryOperator = 0;
@@ -120,7 +114,7 @@ public class MainFrame {
     }
 
     private void numberKeyPressed(MouseEvent mouseEvent) {
-        // use as naming suggests
+        // use is as name indicates
         if (nextValueCanBeTypedFlag){
             nextValueCanBeTypedFlag = false;
             displayValueString = "0";
@@ -143,6 +137,9 @@ public class MainFrame {
             displayValueString += mouseEvent.getComponent().getName();
         }
 
+        // reset deleteFlag
+        deleteFlag = false;
+
         // show output
         this.numKeyPressedDisplay();
     }
@@ -159,6 +156,9 @@ public class MainFrame {
 
             // reset decimal flag
             decimalFlag = false;
+
+            // delete should not be able to work unless a new numerical key is typed
+            deleteFlag = true;
         }
         else if (calculateFlag){
             // started new calculation using display value as left hand
@@ -203,7 +203,7 @@ public class MainFrame {
                         else {
                             screenPane.setText("Cannot divide \nby zero!");
                         }
-                        resetFlag = true;
+                        addListenerToMainPanel();
                         return;
                     }
                     else {
@@ -212,8 +212,7 @@ public class MainFrame {
                     break;
                 default:
                     screenPane.setText("No operaton value.\nSomething went really wrong");
-                    Thread.sleep(5000);
-                    System.exit(-1);
+                    addListenerToMainPanel();
                     break;
             }
 
@@ -224,6 +223,8 @@ public class MainFrame {
             // reset unaryOperator int needed for percentage "Result undefined!" message
             // a / 0 % = "Result undefined!" compared to a / 0 = cannot divide by zero
             unaryOperator = 0;
+
+            deleteFlag = true;
 
             resultValueScreenDisplay();
         }
@@ -269,7 +270,7 @@ public class MainFrame {
             case 4:
                 if (displayValueString.equals("0") || leftHandValueString.equals("0")) {
                     screenPane.setText("Cannot divide by zero");
-                    resetFlag = true;
+                    addListenerToMainPanel();
                     return;
                 } else {
                     bigDec = new BigDecimal("1").divide(new BigDecimal(displayValueString), 16, BigDecimal.ROUND_CEILING);
@@ -281,11 +282,10 @@ public class MainFrame {
             case 6:
                 if (displayValueString.startsWith("-")){
                     screenPane.setText("Invalid input");
-                    resetFlag = true;
+                    addListenerToMainPanel();
                     return;
                 }else {
                     bigDec = Controller.bigDecimalSQRT(new BigDecimal(displayValueString), 16);
-
                 }
                 break;
         }
@@ -294,11 +294,49 @@ public class MainFrame {
         resultValueScreenDisplay();
     }
 
-    public MainFrame() {
-        // setting format for appropriate firstValue print to screen
-        // simple print the double firstValue gives a scientific notation in a too small number
-        decimalFormat.setMaximumFractionDigits(20);
+    private void deleteButtonPressed() {
+        // if screen displays result after using "=" button should not work
+        if (deleteFlag){
+            return;
+        }
 
+        // else it starts to delete the current input until "0"
+        if (displayValueString.length() == 1){
+            displayValueString = "0";
+        }
+        else {
+            displayValueString = displayValueString.substring(0, displayValueString.length() - 1);
+        }
+
+        numKeyPressedDisplay();
+
+    }
+
+
+    MouseAdapter listener4 = new MouseAdapter() {
+        @Override
+        public void mousePressed(MouseEvent mouseEvent) {
+            super.mousePressed(mouseEvent);
+
+            // reset all values
+            completeReset();
+
+            // remove listener
+            mainPanel.removeMouseListener(listener4);
+
+        }
+    };
+
+    // adding event listener to panel.
+    // used after getting an error like divide with 0, to clear text and reset values
+    // so the calculator is ready to be used again
+    private void addListenerToMainPanel() {
+
+        mainPanel.addMouseListener(listener4);
+
+    }
+
+    public MainFrame() {
 
         // numerical key listener
         MouseAdapter listener = new MouseAdapter() {
@@ -427,15 +465,14 @@ public class MainFrame {
             }
         });
 
-        MouseAdapter listener4 = new MouseAdapter() {
+        delButton.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent mouseEvent) {
                 super.mousePressed(mouseEvent);
-                completeReset();
+
+                deleteButtonPressed();
             }
-        };
-
-
+        });
 
     }
 
